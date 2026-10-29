@@ -28,12 +28,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      GEMINI_API_KEY: ${ secrets.GOOGLE_AI_PAID || secrets.GOOGLE_AI }
+      GEMINI_API_KEY: ${{ secrets.GOOGLE_AI_PAID || secrets.GOOGLE_AI }}
       GEMINI_TTS_MODEL: gemini-3.8-flash-tts
-      START_SPEAKER: ${ github.event.inputs.start_speaker || '6' }
-      END_SPEAKER: ${ github.event.inputs.end_speaker || '10' }
-      GOOGLE_DRIVE_FOLDER_ID: ${ secrets.GOOGLE_DRIVE_FOLDER_ID || '1SE3JYbB4c-pC1W-ymRK6S5CsFt-XidzA' }
-      GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: ${ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON || secrets.GDRIVE_SERVICE_ACCOUNT_JSON }
+      START_SPEAKER: ${{ github.event.inputs.start_speaker || '6' }}
+      END_SPEAKER: ${{ github.event.inputs.end_speaker || '10' }}
+      GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID || '1SE3JYbB4c-pC1W-ymRK6S5CsFt-XidzA' }}
+      GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON || secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
       PYTHONUNBUFFERED: "1"
 
     steps:
@@ -51,9 +51,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: output
-          key: mpc-dub-interactions-${ hashFiles('data/speakers.json', 'scripts/dub_interactions.py') }-${ github.run_id }
+          key: mpc-dub-interactions-${{ hashFiles('data/speakers.json', 'scripts/dub_interactions.py') }}-${{ github.run_id }}
           restore-keys: |
-            mpc-dub-interactions-${ hashFiles('data/speakers.json', 'scripts/dub_interactions.py') }-
+            mpc-dub-interactions-${{ hashFiles('data/speakers.json', 'scripts/dub_interactions.py') }}-
 
       - name: Install dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements.txt
@@ -77,13 +77,15 @@ jobs:
           data=json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
           tracks=data.get("tracks", {})
           source=json.loads(pathlib.Path("data/speakers.json").read_text(encoding="utf-8"))
+          drive_required=bool(os.getenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON","").strip())
           missing=[]
           for n in range(int(os.getenv("START_SPEAKER","6")), int(os.getenv("END_SPEAKER","10"))+1):
               if 1 <= n <= len(source["speakers"]):
                   key=source["speakers"][n-1]["id"]
-                  if tracks.get(key,{}).get("status") != "complete":
+                  row=tracks.get(key,{})
+                  if row.get("status") != "complete" or (drive_required and not row.get("drive_url")):
                       missing.append(key)
-          print("Tracks still requiring synthesis:", len(missing))
+          print("Tracks still requiring synthesis or Drive upload:", len(missing))
           with open(os.environ["GITHUB_OUTPUT"],"a") as f:
               f.write("complete="+("true" if not missing else "false")+"\n")
           PY
@@ -97,7 +99,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: output
-          key: mpc-dub-interactions-${ hashFiles('data/speakers.json', 'scripts/dub_interactions.py') }-${ github.run_id }
+          key: mpc-dub-interactions-${{ hashFiles('data/speakers.json', 'scripts/dub_interactions.py') }}-${{ github.run_id }}
 
       - name: Summarize generated tracks
         if: always()
@@ -120,7 +122,7 @@ jobs:
         if: always() && steps.completion.outputs.complete != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: mpc-arabic-dubbing-interactions-${ github.run_id }
+          name: mpc-arabic-dubbing-interactions-${{ github.run_id }}
           path: |
             output/final/*.wav
             output/manifest.json
