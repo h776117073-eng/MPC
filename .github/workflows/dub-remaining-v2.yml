@@ -1,0 +1,129 @@
+name: Arabic dubbing - remaining voices (Interactions API, quota-efficient)
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_speaker:
+        description: "First speaker number"
+        required: false
+        default: "6"
+        type: string
+      end_speaker:
+        description: "Last speaker number"
+        required: false
+        default: "10"
+        type: string
+  schedule:
+    - cron: "5 7 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mpc-dub-interactions-main
+  cancel-in-progress: false
+
+jobs:
+  dubbing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GEMINI_API_KEY: ${ secrets.GOOGLE_AI_PAID || secrets.GOOGLE_AI }
+      GEMINI_TTS_MODEL: gemini-3.8-flash-tts
+      START_SPEAKER: ${ github.event.inputs.start_speaker || '6' }
+      END_SPEAKER: ${ github.event.inputs.end_speaker || '10' }
+      GOOGLE_DRIVE_FOLDER_ID: ${ secrets.GOOGLE_DRIVE_FOLDER_ID || '1SE3JYbB4c-pC1W-ymRK6S5CsFt-XidzA' }
+      GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: ${ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON || secrets.GDRIVE_SERVICE_ACCOUNT_JSON }
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout MPC
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Restore resumable completed tracks
+        uses: actions/cache@v4
+        with:
+          path: output
+          key: mpc-dub-interactions-${ hashFiles('data/speakers.json', 'scripts/dub_interactions.py') }-${ github.run_id }
+          restore-keys: |
+            mpc-dub-interactions-${ hashFiles('data/speakers.json', 'scripts/dub_interactions.py') }-
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Verify Google AI secret
+        shell: bash
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::Add a billed Google AI API key as GOOGLE_AI_PAID, or use GOOGLE_AI after its free quota resets."
+            exit 1
+          fi
+          echo "Google AI secret is present; its value is hidden."
+
+      - name: Check if all requested tracks already exist
+        id: completion
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          p=pathlib.Path("output/manifest.json")
+          data=json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+          tracks=data.get("tracks", {})
+          source=json.loads(pathlib.Path("data/speakers.json").read_text(encoding="utf-8"))
+          missing=[]
+          for n in range(int(os.getenv("START_SPEAKER","6")), int(os.getenv("END_SPEAKER","10"))+1):
+              if 1 <= n <= len(source["speakers"]):
+                  key=source["speakers"][n-1]["id"]
+                  if tracks.get(key,{}).get("status") != "complete":
+                      missing.append(key)
+          print("Tracks still requiring synthesis:", len(missing))
+          with open(os.environ["GITHUB_OUTPUT"],"a") as f:
+              f.write("complete="+("true" if not missing else "false")+"\n")
+          PY
+
+      - name: Generate remaining speaker WAV masters
+        if: steps.completion.outputs.complete != 'true'
+        run: python scripts/dub_interactions.py --start-speaker "$START_SPEAKER" --end-speaker "$END_SPEAKER"
+
+      - name: Save resumable output, even after a failed attempt
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: output
+          key: mpc-dub-interactions-${ hashFiles('data/speakers.json', 'scripts/dub_interactions.py') }-${ github.run_id }
+
+      - name: Summarize generated tracks
+        if: always()
+        shell: bash
+        run: |
+          echo "## Arabic dubbing output" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f output/manifest.json ]; then
+            python - <<'PY'
+          import json, os, pathlib
+          data=json.loads(pathlib.Path("output/manifest.json").read_text(encoding="utf-8"))
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as f:
+              f.write("| Speaker | Voice | Status | Duration (s) |\n|---|---|---|---:|\n")
+              for s in data.get("tracks",{}).values():
+                  f.write(f"| {s.get('speaker','')} | {s.get('voice','')} | {s.get('status','pending')} | {s.get('duration_seconds','—')} |\n")
+          PY
+          fi
+          find output/final -maxdepth 1 -type f -name '*.wav' -printf '%f (%s bytes)\n' 2>/dev/null | tee -a "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload WAV masters and checkpoint manifest
+        if: always() && steps.completion.outputs.complete != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpc-arabic-dubbing-interactions-${ github.run_id }
+          path: |
+            output/final/*.wav
+            output/manifest.json
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
