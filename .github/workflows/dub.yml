@@ -1,0 +1,105 @@
+name: Arabic dubbing - Gemini 3.8 Flash TTS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/speakers.json"
+      - "scripts/**"
+      - ".github/workflows/dub.yml"
+  workflow_dispatch:
+    inputs:
+      start_speaker:
+        description: "First speaker number (1-10); default 6 skips five WAVs already uploaded"
+        required: false
+        default: "6"
+        type: string
+      end_speaker:
+        description: "Last speaker number (1-10)"
+        required: false
+        default: "10"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mpc-arabic-dubbing-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dubbing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.GOOGLE_AI_STUDIO_API_KEY || secrets.GOOGLE_API_KEY || secrets.GOOGLE_STUDIO_API_KEY }}
+      GEMINI_TTS_MODEL: gemini-3.8-flash-tts
+      START_SPEAKER: ${{ github.event.inputs.start_speaker || '6' }}
+      END_SPEAKER: ${{ github.event.inputs.end_speaker || '10' }}
+      GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID || '1SE3JYbB4c-pC1W-ymRK6S5CsFt-XidzA' }}
+      GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON || secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout MPC
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Restore resumable audio chunks
+        uses: actions/cache@v4
+        with:
+          path: output
+          key: mpc-dub-${{ hashFiles('data/speakers.json', 'scripts/dub.py') }}-${{ github.run_id }}
+          restore-keys: |
+            mpc-dub-${{ hashFiles('data/speakers.json', 'scripts/dub.py') }}-
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Verify Gemini key is configured
+        shell: bash
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::No Google AI Studio key found. Add one repository Actions secret: GEMINI_API_KEY, GOOGLE_AI_STUDIO_API_KEY, GOOGLE_API_KEY, or GOOGLE_STUDIO_API_KEY. The key value is never printed."
+            exit 1
+          fi
+          echo "Gemini secret detected (value hidden). Model: $GEMINI_TTS_MODEL"
+
+      - name: Generate remaining speaker WAV masters
+        run: python scripts/dub.py --start-speaker "$START_SPEAKER" --end-speaker "$END_SPEAKER"
+
+      - name: Summarize generated tracks
+        if: always()
+        shell: bash
+        run: |
+          echo "## Arabic dubbing output" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f output/manifest.json ]; then
+            python - <<'PY'
+          import json, os, pathlib
+          data=json.loads(pathlib.Path("output/manifest.json").read_text(encoding="utf-8"))
+          summary=open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8")
+          summary.write("| Speaker | Voice | Status | Duration (s) |\n|---|---|---|---:|\n")
+          for s in data.get("tracks",{}).values():
+              summary.write(f"| {s.get('speaker','')} | {s.get('voice','')} | {s.get('status','in progress')} | {s.get('duration_seconds','—')} |\n")
+          summary.close()
+          PY
+          fi
+          find output/final -maxdepth 1 -type f -name '*.wav' -printf '%f %s bytes\n' 2>/dev/null || true
+
+      - name: Upload WAV masters and checkpoint manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpc-arabic-dubbing-${{ github.run_id }}
+          path: |
+            output/final/*.wav
+            output/manifest.json
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
