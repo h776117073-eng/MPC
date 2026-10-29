@@ -48,28 +48,30 @@ def make_jobs(speaker: dict[str, Any]) -> list[dict[str, str]]:
             continue
         raw = re.sub(r"^\s*\[[^\]]+\]\s*", "", raw.strip())
         tags = [m.group(1).strip().lower() for m in TAG_RE.finditer(raw)]
-        vocal = []
         moods = []
         for tag in tags:
             normalized = tag.replace("_", " ").strip()
-            if normalized in VOICE_TAGS:
-                vocal.append(f"<{normalized}>")
-            elif normalized in {"chuckle", "laughing"}:
-                vocal.append("<laugh>")
-            else:
+            if normalized not in VOICE_TAGS and normalized not in {"chuckle", "laughing"}:
                 moods.append(normalized)
-        # Keep only supported vocal-event tags in the spoken text. Acting cues
-        # become speech_metadata.style instead of being read aloud.
-        clean = TAG_RE.sub("", raw)
+        # Preserve vocal cues at their original word position; move acting cues
+        # to speech_metadata.style so they are not pronounced as literal words.
+        def keep_vocal(match):
+            normalized = match.group(1).strip().lower().replace("_", " ")
+            if normalized in VOICE_TAGS:
+                return f"<{normalized}>"
+            if normalized in {"chuckle", "laughing"}:
+                return "<laugh>"
+            return ""
+        clean = TAG_RE.sub(keep_vocal, raw)
         clean = re.sub(r"^\s*\[[^\]]+\]\s*", "", clean)
         clean = re.sub(r"\s+", " ", clean).strip()
         if not clean:
             continue
-        style = speaker["style"]
+        style = speaker["style"] + " Speak the supplied Arabic words verbatim in natural Modern Standard Arabic. Do not translate, paraphrase, omit, or add words."
         if moods:
             style += " Emotional acting direction for this utterance: " + ", ".join(dict.fromkeys(moods)) + "."
         for sub_index, chunk in enumerate(split_long(clean), start=1):
-            text = " ".join(vocal) + (" " if vocal else "") + chunk
+            text = chunk
             jobs.append({
                 "text": text,
                 "style": style,
