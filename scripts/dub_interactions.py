@@ -56,7 +56,7 @@ def extract_audio(payload: dict[str, Any]) -> bytes:
                     return base64.b64decode(part["data"])
     raise RuntimeError("Interactions API response contained no model-output audio data: " + json.dumps(payload, ensure_ascii=False)[:1500])
 
-def request_audio(session, api_key, speaker, turns):
+def request_audio(session, api_keys, speaker, turns):
     content = [{
         "type": "text",
         "text": turn["text"],
@@ -69,40 +69,57 @@ def request_audio(session, api_key, speaker, turns):
         "generation_config": {"speech_config": [{"voice": speaker["voice"]}]},
     }
     last_error = None
-    for attempt in range(1, 5):
-        try:
-            response = session.post(
-                API_URL,
-                headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
-                json=body,
-                timeout=(30, 600),
-            )
-            if response.status_code == 429:
-                last_error = response.text[:2500]
-                lower = last_error.lower()
-                if "requests per day" in lower or "free_tier_requests" in lower or "retry in" in lower and ("h" in lower or "m" in lower):
-                    raise RuntimeError("Google daily TTS quota is exhausted; stop now and retry after reset. " + last_error[:1600])
+    for key_index, api_key in enumerate(api_keys, start=1):
+        key_failure = None
+        for attempt in range(1, 5):
+            try:
+                response = session.post(
+                    API_URL,
+                    headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+                    json=body,
+                    timeout=(30, 600),
+                )
+                if response.status_code == 429:
+                    last_error = response.text[:2500]
+                    lower = last_error.lower()
+                    if "requests per day" in lower or "free_tier_requests" in lower or "daily request" in lower:
+                        key_failure = "daily quota exhausted"
+                        print(f"Gemini key {key_index}: daily quota exhausted; trying next configured key.", flush=True)
+                        break
+                    if attempt == 4:
+                        key_failure = "transient rate limit retries exhausted"
+                        break
+                    delay = min(60, 5 * (2 ** (attempt - 1)))
+                    print(f"Gemini key {key_index}: temporary rate limit; retrying in {delay}s", flush=True)
+                    time.sleep(delay)
+                    continue
+                if response.status_code in (400, 401, 403):
+                    last_error = response.text[:1800]
+                    lower = last_error.lower()
+                    if "api_key_invalid" in lower or "invalid api key" in lower or response.status_code in (401, 403):
+                        key_failure = f"key rejected with HTTP {response.status_code}"
+                        print(f"Gemini key {key_index}: authentication rejected; trying next configured key.", flush=True)
+                        break
+                    raise RuntimeError(f"Gemini Interactions API HTTP {response.status_code}: {response.text[:2500]}")
+                if response.status_code >= 500:
+                    last_error = f"HTTP {response.status_code}: {response.text[:1600]}"
+                    if attempt == 4:
+                        key_failure = "server retries exhausted"
+                        break
+                    time.sleep(min(60, 5 * (2 ** (attempt - 1))))
+                    continue
+                if not response.ok:
+                    raise RuntimeError(f"Gemini Interactions API HTTP {response.status_code}: {response.text[:2500]}")
+                return extract_audio(response.json())
+            except (requests.Timeout, requests.ConnectionError) as exc:
+                last_error = str(exc)
                 if attempt == 4:
-                    break
-                delay = min(60, 5 * (2 ** (attempt - 1)))
-                print(f"Temporary rate limit; retrying in {delay}s", flush=True)
-                time.sleep(delay)
-                continue
-            if response.status_code >= 500:
-                last_error = f"HTTP {response.status_code}: {response.text[:1600]}"
-                if attempt == 4:
+                    key_failure = "network retries exhausted"
                     break
                 time.sleep(min(60, 5 * (2 ** (attempt - 1))))
-                continue
-            if not response.ok:
-                raise RuntimeError(f"Gemini Interactions API HTTP {response.status_code}: {response.text[:2500]}")
-            return extract_audio(response.json())
-        except (requests.Timeout, requests.ConnectionError) as exc:
-            last_error = str(exc)
-            if attempt == 4:
-                break
-            time.sleep(min(60, 5 * (2 ** (attempt - 1))))
-    raise RuntimeError("Gemini TTS retries exhausted: " + str(last_error))
+        if key_failure:
+            print(f"Gemini key {key_index} unavailable for this track: {key_failure}", flush=True)
+    raise RuntimeError("All configured Gemini keys failed for this track: " + str(last_error))
 
 def validate_wav(path: Path) -> float:
     with wave.open(str(path), "rb") as wf:
@@ -165,9 +182,13 @@ def main():
     parser.add_argument("--output", default="output")
     args = parser.parse_args()
 
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not api_key:
-        raise SystemExit("GEMINI_API_KEY is missing.")
+    api_keys = []
+    for variable in ("GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"):
+        value = os.getenv(variable, "").strip()
+        if value and value not in api_keys:
+            api_keys.append(value)
+    if not api_keys:
+        raise SystemExit("No Gemini API key is configured (expected GEMINI_API_KEY or GEMINI_API_KEY_2).")
     source = json.loads(Path(args.source).read_text(encoding="utf-8"))
     speakers = source["speakers"]
     output = Path(args.output)
@@ -215,7 +236,7 @@ def main():
             flush=True,
         )
 
-        audio = request_audio(session, api_key, speaker, turns)
+        audio = request_audio(session, api_keys, speaker, turns)
         tmp = final_path.with_suffix(".wav.tmp")
         tmp.write_bytes(audio)
         tmp.replace(final_path)
