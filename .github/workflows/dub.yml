@@ -65,7 +65,7 @@ jobs:
       - name: Verify Gemini key is configured
         shell: bash
         run: |
-          if [ -z "$GEMINI_API_KEY" ]; then
+          if [ -z "$      GEMINI_API_KEY: ${{ secrets.GOOGLE_AI }}" ]; then
             echo "::error::No Google AI Studio key found. Add one repository Actions secret: GEMINI_API_KEY, GOOGLE_AI_STUDIO_API_KEY, GOOGLE_API_KEY, or GOOGLE_STUDIO_API_KEY. The key value is never printed."
             exit 1
           fi
