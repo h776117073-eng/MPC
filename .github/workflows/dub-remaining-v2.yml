@@ -95,7 +95,7 @@ jobs:
         run: python scripts/dub_interactions.py --start-speaker "$START_SPEAKER" --end-speaker "$END_SPEAKER"
 
       - name: Save resumable output, even after a failed attempt
-        if: always()
+        if: always() && steps.completion.outputs.complete != 'true'
         uses: actions/cache/save@v4
         with:
           path: output
