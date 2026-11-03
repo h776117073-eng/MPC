@@ -1,0 +1,38 @@
+{
+  "target_integrated_lufs": -16.0,
+  "true_peak_ceiling_dbfs": -1.0,
+  "voice_position": "center, dry, intelligible",
+  "voice_sidechain_ducking": {
+    "attenuation_target_db": 9,
+    "attack_ms": 25,
+    "release_ms": 450
+  },
+  "ambience": {
+    "name": "desert night wind and low drone",
+    "components_hz": [
+      39.5,
+      180
+    ],
+    "stereo": "centered low-level bed, ducked under narration"
+  },
+  "foley": [
+    {
+      "cue": "three hollow wood knocks",
+      "placement": "act 4, first clear knocks"
+    },
+    {
+      "cue": "soft circling phantom hoofbeats",
+      "placement": "act 4 and act 5"
+    },
+    {
+      "cue": "28 Hz sub impact with 8 kHz metallic shimmer",
+      "placement": "act 5, car rollover"
+    }
+  ],
+  "deliverables": {
+    "lossless": "FLAC 48 kHz stereo, 24-bit",
+    "distribution": "MP3 48 kHz stereo, 320 kbps",
+    "voice_master": "WAV 24 kHz mono, 16-bit"
+  },
+  "source": "DLOO Sound Design Blueprint and Emotional Timeline, used as generalized style references only"
+}
