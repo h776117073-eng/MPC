@@ -1,10 +1,6 @@
 name: Arabic horror narration - Qaa Al-Tahawil
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/arabic-horror-narration.yml"
   workflow_dispatch:
 
 permissions:
