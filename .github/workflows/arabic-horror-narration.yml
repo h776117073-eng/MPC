@@ -1,0 +1,108 @@
+name: Arabic horror narration - Qaa Al-Tahawil
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mpc-arabic-horror-narration
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GEMINI_API_KEY: ${ secrets.GOOGLE_AI_PAID || secrets.GOOGLE_AI }}
+      TTS_MODEL: gemini-3.8-flash-tts
+      TTS_VOICE: Fenrir
+      GOOGLE_DRIVE_FOLDER_ID: "1vR2w4a33a16C2fcGfqOTxrUyGC-kctlS"
+      GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: ${ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON || secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout MPC
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Restore resumable TTS chunks
+        uses: actions/cache@v4
+        with:
+          path: output/horror-story/chunks
+          key: horror-qaa-tahawil-${ hashFiles('story/caa_tahawil/story_segments.json', 'scripts/render_horror_story.py') }}-${ github.run_id }}-${ github.run_attempt }}
+          restore-keys: |
+            horror-qaa-tahawil-${ hashFiles('story/caa_tahawil/story_segments.json', 'scripts/render_horror_story.py') }}-
+
+      - name: Install FFmpeg and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify Google AI secret
+        shell: bash
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::Add GOOGLE_AI or GOOGLE_AI_PAID in MPC repository Actions secrets."
+            exit 1
+          fi
+          echo "Google AI API secret is present; the value is hidden."
+
+      - name: Generate narration, ambience, foley and final masters
+        run: |
+          python scripts/render_horror_story.py \
+            --source story/caa_tahawil/story_segments.json \
+            --output output/horror-story
+
+      - name: Save resumable TTS chunks even on partial completion
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: output/horror-story/chunks
+          key: horror-qaa-tahawil-${ hashFiles('story/caa_tahawil/story_segments.json', 'scripts/render_horror_story.py') }}-${ github.run_id }}-${ github.run_attempt }}
+
+      - name: Create production summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## قاع التهاويل — Production" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f output/horror-story/manifest.json ]; then
+            python - <<'PY'
+          import json, os, pathlib
+          p=pathlib.Path("output/horror-story/manifest.json")
+          d=json.loads(p.read_text(encoding="utf-8"))
+          f=open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8")
+          f.write(f"- Status: **{d.get('status','in progress')}**\n")
+          f.write(f"- Model: {d.get('model')} / Voice: {d.get('voice')}\n")
+          f.write(f"- Requested words: {d.get('requested_words','—')}\n")
+          f.write(f"- Completed TTS chunks: {len(d.get('completed_chunks',{}))}/{d.get('planned_chunks','—')}\n")
+          f.write(f"- Duration: {d.get('duration_seconds','—')} seconds\n")
+          f.close()
+          PY
+          fi
+          ls -lh output/horror-story/final_master* output/horror-story/narration_clean* 2>/dev/null || true
+
+      - name: Upload final audio masters and audit files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qaa-al-tahawil-arabic-horror-audio-${ github.run_id }}
+          path: |
+            output/horror-story/final_master_48k_stereo_24bit.flac
+            output/horror-story/final_master_48k_stereo_320k.mp3
+            output/horror-story/narration_clean_24k_mono.wav
+            output/horror-story/manifest.json
+            output/horror-story/delivery.json
+            output/horror-story/act_time_bounds.json
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
