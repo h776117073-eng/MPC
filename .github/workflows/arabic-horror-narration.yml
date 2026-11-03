@@ -15,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      GEMINI_API_KEY: ${ secrets.GOOGLE_AI_PAID || secrets.GOOGLE_AI }}
+      GEMINI_API_KEY: ${{ secrets.GOOGLE_AI_PAID || secrets.GOOGLE_AI }}
       TTS_MODEL: gemini-3.8-flash-tts
       TTS_VOICE: Fenrir
       GOOGLE_DRIVE_FOLDER_ID: "1vR2w4a33a16C2fcGfqOTxrUyGC-kctlS"
-      GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: ${ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON || secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+      GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON || secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
       PYTHONUNBUFFERED: "1"
 
     steps:
@@ -37,9 +37,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: output/horror-story/chunks
-          key: horror-qaa-tahawil-${ hashFiles('story/caa_tahawil/story_segments.json', 'scripts/render_horror_story.py') }}-${ github.run_id }}-${ github.run_attempt }}
+          key: horror-qaa-tahawil-${{ hashFiles('story/caa_tahawil/story_segments.json', 'scripts/render_horror_story.py') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            horror-qaa-tahawil-${ hashFiles('story/caa_tahawil/story_segments.json', 'scripts/render_horror_story.py') }}-
+            horror-qaa-tahawil-${{ hashFiles('story/caa_tahawil/story_segments.json', 'scripts/render_horror_story.py') }}-
 
       - name: Install FFmpeg and Python dependencies
         run: |
@@ -68,7 +68,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: output/horror-story/chunks
-          key: horror-qaa-tahawil-${ hashFiles('story/caa_tahawil/story_segments.json', 'scripts/render_horror_story.py') }}-${ github.run_id }}-${ github.run_attempt }}
+          key: horror-qaa-tahawil-${{ hashFiles('story/caa_tahawil/story_segments.json', 'scripts/render_horror_story.py') }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Create production summary
         if: always()
@@ -95,7 +95,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: qaa-al-tahawil-arabic-horror-audio-${ github.run_id }}
+          name: qaa-al-tahawil-arabic-horror-audio-${{ github.run_id }}
           path: |
             output/horror-story/final_master_48k_stereo_24bit.flac
             output/horror-story/final_master_48k_stereo_320k.mp3
@@ -106,3 +106,4 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
           compression-level: 0
+
