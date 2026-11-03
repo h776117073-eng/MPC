@@ -1,0 +1,62 @@
+{
+  "title": "قاع التهاويل: الصوت الذي يعرف اسمك",
+  "format": "Arabic horror audio story, Saudi/Gulf vernacular, approximately 45–55 minutes",
+  "narrator": "مهند، narrator and first-person witness",
+  "companions": [
+    {
+      "name": "راكان",
+      "role": "driver, practical, confident, knows desert routes"
+    },
+    {
+      "name": "معتز",
+      "role": "jovial friend, jokes at first, later carries the most frightening testimony"
+    }
+  ],
+  "premise": "Three friends leave the paved road for a night camping trip at Qاع التهاويل. They hear hoofbeats, see impossible tracks and hear a voice that imitates the narrator's mother. Their car overturns after a pursuit; separated in the dark, they must resist the calls that use intimate memories to lure them. At dawn they discover the site is adjacent to an old burial ground and learn a warning that makes the night even less explainable.",
+  "rules": [
+    "Write original fiction based on the user's supplied plot, do not claim it is a verbatim transcription of a prior story.",
+    "Natural Saudi urban/Gulf colloquial narration with pan-Arab clarity, intimate first-person storyteller, warm conversational baseline.",
+    "Six-act architecture: cold open; friendly community framing and spiritual protection; grounded social setup; subtle first anomaly; encirclement and chase climax; dawn aftermath and reflective warning.",
+    "Slow burn, tangible emotional stakes, realistic details, sensory progression, not cheap jump scares.",
+    "Keep the entity ambiguous: never fully explain its nature; it uses familiar voices but is not described as a real person.",
+    "Use three sensory layers before every revelation: peripheral sound/movement, rational denial, then visual confirmation.",
+    "Maintain continuity: narrator مهند, driver راكان, friend معتز. Their personalities remain consistent.",
+    "Do not include actual Quran verses or hadith quotations; a narrator may say they recited Ayat al-Kursi and the Mu'awwidhat without quoting text.",
+    "Do not overuse screams. Horror through cold understatement, breath, pauses and restrained dialogue.",
+    "No graphic gore. The overturned vehicle and scratches can be described non-graphically.",
+    "Every scene marker and direction must be bracket syntax only and will be removed before speech. Use exactly [[STYLE:baseline]], [[STYLE:curiosity]], [[STYLE:suspense]], [[STYLE:whisper]], [[STYLE:panic]], [[STYLE:shock]], [[STYLE:relief]], [[STYLE:reflective]], and [[PAUSE:milliseconds]].",
+    "Deliver each passage in paragraphs under the preceding style marker. Never print any other stage directions in spoken text."
+  ],
+  "planned_acts": [
+    {
+      "act": 1,
+      "title": "افتتاح من قلب المطاردة",
+      "goal": "Open in medias res: someone calling from behind while the same voice is heard ahead; a cold-drop pause; no solution yet."
+    },
+    {
+      "act": 2,
+      "title": "ليلة بدت عادية",
+      "goal": "Brief warm welcome, spiritual grounding without quoting scripture, then backstory: why three friends travelled, realistic logistics and friendship; build attachment."
+    },
+    {
+      "act": 3,
+      "title": "آخر إشارة على الطريق",
+      "goal": "Road into the basin, unreliable maps, old local warning, realistic camp, false reassurance, then first strange hoof rhythm."
+    },
+    {
+      "act": 4,
+      "title": "شيء يدور حول الخيمة",
+      "goal": "Tracks around camp, lights at ridge, familiar voice imitation, denial, repeated voice knows intimate phrase, a missing friend and vehicle overturn."
+    },
+    {
+      "act": 5,
+      "title": "النداء من جهتين",
+      "goal": "Separate in darkness, phantom hoofbeats, car wreck, calls from multiple directions including mother's voice, friend testimony, escape toward the ridge, graveyard discovery."
+    },
+    {
+      "act": 6,
+      "title": "الفجر الذي لم ينهِ الحكاية",
+      "goal": "Dawn, rescue, ambiguous local shepherd/old man, unexplained tracks, permanent trauma, measured moral ending and channel sign-off."
+    }
+  ]
+}
