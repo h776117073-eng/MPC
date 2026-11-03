@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      GEMINI_API_KEY: ${{ secrets.GOOGLE_AI_PAID || secrets.GOOGLE_AI }}
+      GEMINI_API_KEY: ${{ secrets.GOOGLE_AI }}
       GEMINI_TTS_MODEL: gemini-3.8-flash-tts
       START_SPEAKER: ${{ github.event.inputs.start_speaker || '6' }}
       END_SPEAKER: ${{ github.event.inputs.end_speaker || '10' }}
@@ -62,7 +62,7 @@ jobs:
         shell: bash
         run: |
           if [ -z "$GEMINI_API_KEY" ]; then
-            echo "::error::Add a billed Google AI API key as GOOGLE_AI_PAID, or use GOOGLE_AI after its free quota resets."
+            echo "::error::Add the separate dubbing-only GOOGLE_AI secret; this workflow must never use GOOGLE_AI_PAID."
             exit 1
           fi
           echo "Google AI secret is present; its value is hidden."
