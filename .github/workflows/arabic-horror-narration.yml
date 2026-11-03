@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      GEMINI_API_KEY: ${{ secrets.GOOGLE_AI_PAID || secrets.GOOGLE_AI }}
+      GEMINI_API_KEY: ${{ secrets.GOOGLE_AI_PAID }}
       TTS_MODEL: gemini-3.8-flash-tts
       TTS_VOICE: Fenrir
       GOOGLE_DRIVE_FOLDER_ID: "1vR2w4a33a16C2fcGfqOTxrUyGC-kctlS"
@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           if [ -z "$GEMINI_API_KEY" ]; then
-            echo "::error::Add GOOGLE_AI or GOOGLE_AI_PAID in MPC repository Actions secrets."
+            echo "::error::Add the dedicated GOOGLE_AI_PAID repository Actions secret."
             exit 1
           fi
           echo "Google AI API secret is present; the value is hidden."
