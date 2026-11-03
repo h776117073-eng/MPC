@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      GEMINI_API_KEY: ${{ secrets.GOOGLE_AI }}
+      GEMINI_API_KEY: ${{ secrets.GOOGLE_AI_DUBBING }}
       GEMINI_TTS_MODEL: gemini-3.8-flash-tts
       START_SPEAKER: ${{ github.event.inputs.start_speaker || '6' }}
       END_SPEAKER: ${{ github.event.inputs.end_speaker || '10' }}
@@ -67,7 +67,7 @@ jobs:
         shell: bash
         run: |
           if [ -z "$GEMINI_API_KEY" ]; then
-            echo "::error::Repository secret GOOGLE_AI is empty or unavailable to this workflow."
+            echo "::error::Repository secret GOOGLE_AI_DUBBING is empty or unavailable to this workflow."
             exit 1
           fi
           echo "Google AI secret is present; its value will not be printed."
