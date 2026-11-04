@@ -2,6 +2,9 @@ name: Arabic horror narration - Qaa Al-Tahawil
 
 on:
   workflow_dispatch:
+  schedule:
+    # Daily after Google's Pacific-time quota reset; 08:15 UTC.
+    - cron: "15 8 * * *"
 
 permissions:
   contents: read
@@ -81,11 +84,11 @@ jobs:
           p=pathlib.Path("output/horror-story/manifest.json")
           d=json.loads(p.read_text(encoding="utf-8"))
           f=open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8")
-          f.write(f"- Status: **{d.get('status','in progress')}**\n")
-          f.write(f"- Model: {d.get('model')} / Voice: {d.get('voice')}\n")
-          f.write(f"- Requested words: {d.get('requested_words','—')}\n")
-          f.write(f"- Completed TTS chunks: {len(d.get('completed_chunks',{}))}/{d.get('planned_chunks','—')}\n")
-          f.write(f"- Duration: {d.get('duration_seconds','—')} seconds\n")
+          f.write(f"- Status: **{d.get('status','in progress')}**\\n")
+          f.write(f"- Model: {d.get('model')} / Voice: {d.get('voice')}\\n")
+          f.write(f"- Requested words: {d.get('requested_words','—')}\\n")
+          f.write(f"- Completed TTS chunks: {len(d.get('completed_chunks',{}))}/{d.get('planned_chunks','—')}\\n")
+          f.write(f"- Duration: {d.get('duration_seconds','—')} seconds\\n")
           f.close()
           PY
           fi
@@ -106,4 +109,3 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
           compression-level: 0
-
