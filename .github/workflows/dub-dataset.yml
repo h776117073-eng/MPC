@@ -61,11 +61,13 @@ jobs:
           PY
       - name: Download and verify private dataset
         shell: bash
+        env:
+          DATASET_URL: ${{ secrets.MPC_ARABIC_DATASET_URL }}
         run: |
           set -euo pipefail
           python - <<'PY'
           import os, pathlib, re, urllib.parse, urllib.request, urllib.error
-          url = os.environ.get("MPC_ARABIC_DATASET_URL", "")
+          url = os.environ.get("DATASET_URL", "")
           parsed = urllib.parse.urlsplit(url)
           checks = {
               "length": len(url),
