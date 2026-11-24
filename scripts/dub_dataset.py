@@ -154,7 +154,8 @@ def make_masters(out,manifest):
     outwav.setparams(params)
     for _,src in rows:
      with wave.open(str(src),"rb") as r:
-      if r.getparams()!=params: raise ValueError("WAV parameter mismatch for "+sid)
+      rp=r.getparams()
+      if (rp.nchannels,rp.sampwidth,rp.framerate,rp.comptype,rp.compname)!=(params.nchannels,params.sampwidth,params.framerate,params.comptype,params.compname): raise ValueError("WAV format mismatch for "+sid)
       outwav.writeframes(r.readframes(r.getnframes()))
   tmp.replace(dst)
   with wave.open(str(dst),"rb") as r: dur=r.getnframes()/r.getframerate()
