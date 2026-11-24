@@ -59,6 +59,24 @@ jobs:
               raise SystemExit('Canary mismatch; secret encryption or transfer path is incorrect.')
           print('CANARY_DECRYPTION: PASS')
           PY
+      - name: Verify exact private download credential fingerprint
+        shell: bash
+        env:
+          DATASET_URL: ${{ secrets.MPC_ARABIC_DATASET_URL }}
+        run: |
+          python - <<'PY'
+          import os, hashlib, urllib.parse
+          value = os.environ.get('DATASET_URL', '')
+          digest = hashlib.sha256(value.encode()).hexdigest()
+          parsed = urllib.parse.urlsplit(value)
+          print('DATASET_URL_LENGTH:', len(value))
+          print('DATASET_URL_SHA256:', digest)
+          print('HTTPS:', parsed.scheme == 'https', 'HOST_PRESENT:', bool(parsed.netloc), 'QUERY_PRESENT:', bool(parsed.query))
+          expected = 'e336e3b0afa71100f8a1e952c04513e8834aeba6c3405b83cd2812da0ec48963'
+          if digest != expected or parsed.scheme != 'https' or not parsed.netloc or not parsed.query:
+              raise SystemExit('Dataset download credential does not match the freshly generated Drive link.')
+          print('DATASET_URL_FINGERPRINT: PASS')
+          PY
       - name: Download and verify private dataset
         shell: bash
         run: |
