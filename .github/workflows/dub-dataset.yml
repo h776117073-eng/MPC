@@ -49,8 +49,35 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --location --silent --show-error --retry 2 \
-            "$MPC_ARABIC_DATASET_URL" --output dataset.zip
+          python - <<'PY'
+          import os, pathlib, re, urllib.parse, urllib.request, urllib.error
+          url = os.environ.get("MPC_ARABIC_DATASET_URL", "")
+          parsed = urllib.parse.urlsplit(url)
+          checks = {
+              "length": len(url),
+              "https": parsed.scheme == "https",
+              "host_present": bool(parsed.netloc),
+              "query_present": bool(parsed.query),
+              "no_whitespace": not any(ch.isspace() for ch in url),
+              "valid_percent_encoding": not bool(re.search(r"%(?![0-9A-Fa-f]{2})", url)),
+          }
+          print("Private download URL shape:", checks)
+          if not all([checks["https"], checks["host_present"], checks["query_present"],
+                      checks["no_whitespace"], checks["valid_percent_encoding"]]):
+              raise SystemExit("Private download URL failed shape validation.")
+          request = urllib.request.Request(url, headers={"User-Agent": "MPC-private-dataset-fetch/1"})
+          try:
+              with urllib.request.urlopen(request, timeout=180) as response:
+                  payload = response.read()
+                  print("Private dataset HTTP status:", response.status, "bytes:", len(payload))
+          except urllib.error.HTTPError as error:
+              print("Private dataset HTTP status:", error.code)
+              raise SystemExit("Private dataset download failed at HTTP layer.")
+          except Exception as error:
+              print("Private dataset download error type:", type(error).__name__)
+              raise SystemExit("Private dataset download failed.")
+          pathlib.Path("dataset.zip").write_bytes(payload)
+          PY
           echo "1f63a19f1e5b92b5129aedd08c95306e  dataset.zip" | md5sum --check -
           mkdir -p dataset
           python - <<'PY'
