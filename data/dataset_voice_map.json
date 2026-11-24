@@ -1,0 +1,21 @@
+{
+  "model": "gemini-3.8-flash-tts",
+  "voices": {
+    "speaker_01": "Leda", "speaker_02": "Alnilam", "speaker_03": "Gacrux",
+    "speaker_04": "Charon", "speaker_05": "Sulafat", "speaker_06": "Fenrir",
+    "speaker_07": "Zephyr", "speaker_08": "Sadachbia", "speaker_09": "Rasalgethi",
+    "speaker_10": "Kore", "speaker_11": "Algenib", "speaker_12": "Orus",
+    "speaker_13": "Despina", "speaker_14": "Sadaltager", "speaker_15": "Schedar",
+    "speaker_16": "Laomedeia", "speaker_17": "Iapetus"
+  },
+  "mixed_role_speakers": {
+    "speaker_15": "Medical staff: several roles grouped into one profile.",
+    "speaker_16": "Dorm bullies, salon guests and crowd: several roles grouped into one profile.",
+    "speaker_17": "Staff, security, police and automated phone: several roles grouped into one profile."
+  },
+  "notes": [
+    "These are prebuilt voices, not cloned voices from the original actors.",
+    "The mixed-role groups cannot provide individual identities for each underlying character.",
+    "Generated WAV stems still require timing alignment and video mix."
+  ]
+}
