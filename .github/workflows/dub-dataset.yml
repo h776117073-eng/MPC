@@ -45,6 +45,20 @@ jobs:
             exit 1
           fi
           echo "Google AI key and private dataset credential are present; values remain hidden."
+      - name: Validate GitHub secret decryption with non-production canary
+        shell: bash
+        env:
+          CANARY: ${{ secrets.MPC_SECRET_CANARY }}
+        run: |
+          python - <<'PY'
+          import os, hashlib
+          value = os.environ.get('CANARY', '')
+          print('CANARY_LENGTH:', len(value))
+          print('CANARY_SHA256:', hashlib.sha256(value.encode()).hexdigest())
+          if value != 'MPC_SECRET_CANARY_2026-11-24':
+              raise SystemExit('Canary mismatch; secret encryption or transfer path is incorrect.')
+          print('CANARY_DECRYPTION: PASS')
+          PY
       - name: Download and verify private dataset
         shell: bash
         run: |
