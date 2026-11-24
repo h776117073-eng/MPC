@@ -1,0 +1,104 @@
+name: Arabic dubbing - prepared dataset (17 speakers)
+on:
+  workflow_dispatch:
+    inputs:
+      start_part:
+        description: "First part number (1-22)"
+        required: true
+        default: "1"
+        type: string
+      end_part:
+        description: "Last part number (1-22); default capped at 12 requests"
+        required: true
+        default: "12"
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: mpc-arabic-dataset-dub
+  cancel-in-progress: false
+jobs:
+  dubbing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GEMINI_API_KEY: ${{ secrets.GOOGLE_AI }}
+      GEMINI_TTS_MODEL: gemini-3.8-flash-tts
+      MPC_ARABIC_DATASET_URL: ${{ secrets.MPC_ARABIC_DATASET_URL }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout selected ref
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify required secrets are present
+        shell: bash
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::MPC secret GOOGLE_AI is empty or unavailable."
+            exit 1
+          fi
+          if [ -z "$MPC_ARABIC_DATASET_URL" ]; then
+            echo "::error::Private dataset download credential is missing or expired."
+            exit 1
+          fi
+          echo "Google AI key and private dataset credential are present; values remain hidden."
+      - name: Download and verify private dataset
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 \
+            "$MPC_ARABIC_DATASET_URL" --output dataset.zip
+          echo "1f63a19f1e5b92b5129aedd08c95306e  dataset.zip" | md5sum --check -
+          mkdir -p dataset
+          python - <<'PY'
+          import zipfile
+          with zipfile.ZipFile("dataset.zip") as archive:
+              bad = archive.testzip()
+              if bad:
+                  raise SystemExit("ZIP integrity error at " + str(bad))
+              archive.extractall("dataset")
+          print("Dataset ZIP integrity and extraction passed.")
+          PY
+          rm -f dataset.zip
+      - name: Restore resumable TTS output
+        uses: actions/cache/restore@v4
+        with:
+          path: output/dataset_dub
+          key: mpc-arabic-dataset-dub-${{ github.run_id }}
+          restore-keys: |
+            mpc-arabic-dataset-dub-
+      - name: Install Python dependencies
+        run: python -m pip install --disable-pip-version-check "requests>=2.32.3,<3"
+      - name: Validate dataset without API calls
+        run: |
+          python scripts/dub_dataset.py \
+            --dataset-root dataset/ARABIC_DUBBING_DATASET \
+            --output output/dataset_dub \
+            --dry-run \
+            --start-part "${{ inputs.start_part }}" \
+            --end-part "${{ inputs.end_part }}"
+      - name: Generate Arabic speech parts
+        run: |
+          python scripts/dub_dataset.py \
+            --dataset-root dataset/ARABIC_DUBBING_DATASET \
+            --output output/dataset_dub \
+            --start-part "${{ inputs.start_part }}" \
+            --end-part "${{ inputs.end_part }}"
+      - name: Save resumable output
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: output/dataset_dub
+          key: mpc-arabic-dataset-dub-${{ github.run_id }}
+      - name: Upload WAV parts, speaker masters and manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpc-arabic-dataset-dub-${{ github.run_id }}
+          path: output/dataset_dub/
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
