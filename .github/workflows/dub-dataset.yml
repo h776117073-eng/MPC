@@ -35,6 +35,8 @@ jobs:
           python-version: "3.12"
       - name: Verify required secrets are present
         shell: bash
+        env:
+          OUTPUT_URL: ${{ secrets.MPC_ARABIC_OUTPUT_URL }}
         run: |
           if [ -z "$GEMINI_API_KEY" ]; then
             echo "::error::MPC secret GOOGLE_AI is empty or unavailable."
@@ -44,7 +46,7 @@ jobs:
             echo "::error::Private dataset download credential is missing or expired."
             exit 1
           fi
-          if [ -z "$MPC_ARABIC_OUTPUT_URL" ]; then
+          if [ -z "$OUTPUT_URL" ]; then
             echo "::error::Private output checkpoint credential is missing or expired."
             exit 1
           fi
